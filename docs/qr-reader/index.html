@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <meta charset="utf-8" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <style>
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+
+  <body
+    class="not_selectable"
+    onload="onLoad()"
+    oncontextmenu="return false;"
+    style="touch-action: none"
+  >
+    <div class="video-container">
+      <video id="video-preview"></video>
+      <canvas id="qr-canvas" class="hidden" ></canvas>
+      <br>
+      <input id="messageBox" type="text" value="..." style="width:80%" /><br />
+    </div>
+  <script type="text/javascript" src="grid.js"></script>
+  <script type="text/javascript" src="version.js"></script>
+  <script type="text/javascript" src="detector.js"></script>
+  <script type="text/javascript" src="formatinf.js"></script>
+  <script type="text/javascript" src="errorlevel.js"></script>
+  <script type="text/javascript" src="bitmat.js"></script>
+  <script type="text/javascript" src="datablock.js"></script>
+  <script type="text/javascript" src="bmparser.js"></script>
+  <script type="text/javascript" src="datamask.js"></script>
+  <script type="text/javascript" src="rsdecoder.js"></script>
+  <script type="text/javascript" src="gf256poly.js"></script>
+  <script type="text/javascript" src="gf256.js"></script>
+  <script type="text/javascript" src="decoder.js"></script>
+  <script type="text/javascript" src="qrcode.js"></script>
+  <script type="text/javascript" src="findpat.js"></script>
+  <script type="text/javascript" src="alignpat.js"></script>
+  <script type="text/javascript" src="databr.js"></script>
+  <script>
+  window.onload = async function() {
+  try {
+    /* Ask for "environnement" (rear) camera if available (mobile),
+     * will fallback to only available otherwise (desktop).
+     * User will be prompted if (s)he allows camera to be started */
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "environment",
+      },
+      audio: false,
+    });
+    const video = document.getElementById("video-preview");
+    video.srcObject = stream;
+    video.setAttribute("playsinline", true); /* otherwise iOS safari starts fullscreen */
+    video.play();
+    setTimeout(tick, 100); /* We launch the tick function 100ms later (see next step) */
+  } catch(err) {
+    const messageBox = document.getElementById("messageBox");
+    messageBox.value = JSON.stringify(err);
+    // window.messageBox.innerText = JSON.stringify(err);
+    // console.log(err); /* User probably refused to grant access*/
+  }
+};
+
+function tick() {
+  const video = document.getElementById('video-preview');
+  const qrCanvasElement = document.getElementById('qr-canvas');
+  const qrCanvas = qrCanvasElement.getContext('2d');
+  let width;
+  let height;
+
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    qrCanvasElement.height = video.videoHeight;
+    qrCanvasElement.width = video.videoWidth;
+    qrCanvas.drawImage(video, 0, 0, qrCanvasElement.width, qrCanvasElement.height);
+
+    const messageBox = document.getElementById("messageBox");
+    try {
+      const result = qrcode.decode();
+      console.log(result)
+      messageBox.value = result;
+      /* Video can now be stopped */
+      video.pause();
+      video.src = '';
+      video.srcObject.getVideoTracks().forEach(track => track.stop());
+
+      /* Display Canvas and hide video stream */
+      qrCanvasElement.classList.add('hidden');
+      video.classList.add('hidden');
+    } catch(err) {
+      messageBox.value = JSON.stringify(err);
+      // console.log(err);
+    }
+  }
+
+  /* If no QR could be decoded from image copied in canvas */
+  if (!video.classList.contains('hidden'))
+    setTimeout(tick, 100);
+}
+  </script>
+  </body>
+</html>
+
